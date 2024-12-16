@@ -1,0 +1,11 @@
+{
+    "name": "chat-app",
+    "private": true,
+    "workspaces": [
+      "packages/*"
+    ],
+    "scripts": {
+      "dev:web": "cd packages/web && npm run dev",
+      "dev:cli": "cd packages/cli && npm run dev"
+    }
+}
