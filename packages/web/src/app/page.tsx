@@ -5,13 +5,23 @@ import { useEffect, useState } from 'react';
 import Chat from '../components/Chat';
 
 export default function Home() {
-  const [session, setSession] = useState(null);
+  const [session, setSession] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const supabase = createClientComponentClient();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-    });
+    const getSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setSession(session);
+      } catch (error) {
+        console.error('Error fetching session:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    getSession();
 
     const {
       data: { subscription },
@@ -21,6 +31,10 @@ export default function Home() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
 
   if (!session) {
     return (
