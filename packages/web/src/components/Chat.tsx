@@ -1,194 +1,91 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { LogOut, Send, User, Loader2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { LogOut, Send, User, MessageSquare } from 'lucide-react';
 
 const Chat = ({ session }) => {
-  const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  const messagesEndRef = useRef(null);
-  const supabase = createClientComponentClient();
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const handleSignOut = () => {
+    // Sign out logic here
   };
 
-  useEffect(() => {
-    const fetchMessages = async () => {
-      const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .order('created_at', { ascending: true });
-
-      if (error) {
-        console.error('Error fetching messages:', error);
-        return;
-      }
-
-      setMessages(data || []);
-      scrollToBottom();
-    };
-
-    fetchMessages();
-
-    const channel = supabase
-      .channel('message_updates')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'messages',
-        },
-        (payload) => {
-          if (payload.eventType === 'INSERT') {
-            setMessages((current) => [...current, payload.new]);
-            scrollToBottom();
-          } else if (payload.eventType === 'DELETE') {
-            setMessages((current) =>
-              current.filter((message) => message.id !== payload.old.id)
-            );
-          } else if (payload.eventType === 'UPDATE') {
-            setMessages((current) =>
-              current.map((message) =>
-                message.id === payload.new.id ? payload.new : message
-              )
-            );
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  const sendMessage = async (e) => {
+  const handleSendMessage = (e) => {
     e.preventDefault();
-    if (!newMessage.trim()) return;
-
-    setIsTyping(true);
-    try {
-      const { error } = await supabase.from('messages').insert([
-        {
-          content: newMessage,
-          user_id: session.user.id,
-          username: session.user.email,
-          created_at: new Date().toISOString(),
-        },
-      ]);
-
-      if (error) throw error;
-      setNewMessage('');
-    } catch (error) {
-      console.error('Error sending message:', error);
-    } finally {
-      setIsTyping(false);
-    }
-  };
-
-  const handleSignOut = async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
-  };
-
-  const formatTimestamp = (timestamp) => {
-    return new Date(timestamp).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    // Message sending logic here
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
       {/* Sidebar */}
-      <div className="w-64 bg-white shadow-md">
-        <div className="p-4">
-          <div className="flex items-center space-x-3 mb-6">
-            <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-              <User className="text-gray-500" size={20} />
+      <div className="w-80 bg-white shadow-lg">
+        <div className="p-6">
+          <div className="flex items-center gap-4 mb-8">
+            <div className="relative">
+              <div className="h-14 w-14 rounded-2xl bg-gradient-to-tr from-violet-500 to-pink-500 flex items-center justify-center shadow-lg">
+                <User className="text-white" size={24} />
+              </div>
+              <div className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-2 border-white bg-green-400 animate-pulse"></div>
             </div>
-            <div>
-              <p className="text-sm font-semibold text-gray-800">
-                {session.user.email}
-              </p>
-              <p className="text-xs text-gray-500">Online</p>
+            <div className="flex-1">
+              <h2 className="text-lg font-semibold bg-gradient-to-r from-violet-600 to-pink-600 bg-clip-text text-transparent">
+                {session?.user?.email || 'User'}
+              </h2>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-sm text-gray-600">Online</span>
+              </div>
             </div>
           </div>
+          
           <button
             onClick={handleSignOut}
-            className="w-full flex items-center justify-center text-sm text-gray-600 hover:text-gray-800 transition-colors"
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-all duration-200 group"
           >
-            <LogOut size={16} />
-            <span className="ml-2">Sign out</span>
+            <LogOut size={18} className="group-hover:rotate-12 transition-transform duration-200" />
+            <span className="font-medium">Sign out</span>
           </button>
         </div>
       </div>
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col">
-        {/* Chat Header */}
-        <div className="p-4 bg-white shadow-sm">
-          <h1 className="text-lg font-semibold text-gray-900">Chat Room</h1>
-        </div>
-
-        {/* Messages */}
-        <div className="flex-1 p-4 overflow-y-auto">
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`mb-4 ${
-                message.user_id === session.user.id
-                  ? 'text-right'
-                  : 'text-left'
-              }`}
-            >
-              <p
-                className={`inline-block p-3 rounded-lg ${
-                  message.user_id === session.user.id
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 text-gray-800'
-                }`}
-              >
-                {message.content}
-              </p>
-              <p className="text-xs text-gray-500 mt-1">
-                {formatTimestamp(message.created_at)}
+        {/* Header */}
+        <div className="bg-white/80 backdrop-blur-sm shadow-sm p-6 border-b border-gray-100">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-violet-500 to-pink-500 flex items-center justify-center">
+              <MessageSquare className="text-white" size={20} />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Chat Room</h1>
+              <p className="text-sm text-gray-500 mt-0.5">
+                0 messages in conversation
               </p>
             </div>
-          ))}
-          <div ref={messagesEndRef} />
+          </div>
+        </div>
+
+        {/* Messages Area */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {/* Messages will go here */}
         </div>
 
         {/* Message Input */}
-        <form
-          onSubmit={sendMessage}
-          className="p-4 bg-white shadow-md flex items-center"
-        >
-          <input
-            type="text"
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            className="flex-1 p-2 border rounded-md text-gray-700 focus:outline-none"
-            placeholder="Type a message..."
-          />
-          <button
-            type="submit"
-            disabled={!newMessage.trim() || isTyping}
-            className="ml-3 p-2 bg-blue-500 text-white rounded-md"
-          >
-            {isTyping ? <Loader2 className="animate-spin" /> : <Send />}
-          </button>
-        </form>
+        <div className="p-6 bg-white/80 backdrop-blur-sm border-t border-gray-100">
+          <form onSubmit={handleSendMessage} className="flex gap-4">
+            <input
+              type="text"
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              className="flex-1 rounded-xl border-2 border-gray-200 px-6 py-4 text-gray-700 placeholder-gray-400 focus:outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10 transition-all duration-200"
+              placeholder="Type your message..."
+            />
+            <button
+              type="submit"
+              className="px-8 py-4 rounded-xl bg-gradient-to-r from-violet-500 to-pink-500 text-white font-medium flex items-center gap-2 hover:opacity-90 focus:outline-none focus:ring-4 focus:ring-violet-500/20 transition-all duration-200 shadow-lg shadow-violet-500/25"
+            >
+              <Send size={18} />
+              <span>Send</span>
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );
